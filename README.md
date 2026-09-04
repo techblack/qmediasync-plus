@@ -50,11 +50,3 @@ sudo ./build_and_release.sh -v vx.xx.xx
 - Fanart.tv API KEY
 
 全部都在main.go文件中开头的变量中设置，也可以在编译时通过ldflags传入
-
-## Star
-
-![Star History](https://api.star-history.com/svg?repos=techblack/qmediasync-plus&type=Date)
-
-## 请作者喝杯咖啡
-
-![请作者喝杯咖啡](http://s.mqfamily.top/alipay_wechat.jpg)
