@@ -111,6 +111,21 @@ type UploadResult[T any] struct {
 // 获取文件下载地址
 // POST 域名 + /open/ufile/downurl
 func (c *OpenClient) GetDownloadUrl(ctx context.Context, pickCode string, userAgent string, bypassRateLimit bool) string {
+	if c.shouldUseCookie() {
+		return c.getDownloadUrlCookie(pickCode, userAgent)
+	}
+	downloadUrl, err := c.getDownloadUrlOpen(ctx, pickCode, userAgent, bypassRateLimit)
+	if c.shouldFallback(err) {
+		return c.getDownloadUrlCookie(pickCode, userAgent)
+	}
+	if err != nil {
+		helpers.V115Log.Errorf("获取文件下载地址失败: %v", err)
+		return ""
+	}
+	return downloadUrl
+}
+
+func (c *OpenClient) getDownloadUrlOpen(ctx context.Context, pickCode string, userAgent string, bypassRateLimit bool) (string, error) {
 	params := map[string]string{
 		"pick_code": pickCode,
 	}
@@ -121,13 +136,12 @@ func (c *OpenClient) GetDownloadUrl(ctx context.Context, pickCode string, userAg
 	config.BypassRateLimit = bypassRateLimit
 	_, respBytes, err := c.doAuthRequest(ctx, url, req, config, nil)
 	if err != nil {
-		helpers.V115Log.Errorf("获取文件下载地址失败: %v", err)
-		return ""
+		return "", err
 	}
 	jsonErr := json.Unmarshal(respBytes, &respData)
 	if jsonErr != nil || !respData.State {
 		helpers.V115Log.Errorf("获取文件下载地址失败: %v", jsonErr)
-		return ""
+		return "", jsonErr
 	}
 	data := respData.Data
 	var first DownloadUrlData
@@ -135,7 +149,17 @@ func (c *OpenClient) GetDownloadUrl(ctx context.Context, pickCode string, userAg
 		first = v
 		break
 	}
-	return first.Url.Url
+	return first.Url.Url, nil
+}
+
+func (c *OpenClient) getDownloadUrlCookie(pickCode string, userAgent string) string {
+	info, err := c.getCookieClient().DownloadWithUA(pickCode, userAgent)
+	if err != nil {
+		helpers.V115Log.Errorf("115 Cookie驱动获取文件下载地址失败: %v", err)
+		return ""
+	}
+	helpers.V115Log.Infof("OpenAPI限流，已通过115 Cookie驱动获取下载地址: %s", pickCode)
+	return info.Url.Url
 }
 
 // 获取视频播放链接
@@ -158,6 +182,17 @@ func (c *OpenClient) GetVideoPlayUrl(ctx context.Context, pickCode string, userA
 // 初始化上传进程
 // POST 域名 + /open/upload/init
 func (c *OpenClient) Upload(ctx context.Context, filePath string, parentFileId string, signKey string, signVal string) (string, error) {
+	if c.shouldUseCookie() {
+		return c.uploadCookie(ctx, filePath, parentFileId)
+	}
+	fileId, err := c.uploadOpen(ctx, filePath, parentFileId, signKey, signVal)
+	if c.shouldFallback(err) {
+		return c.uploadCookie(ctx, filePath, parentFileId)
+	}
+	return fileId, err
+}
+
+func (c *OpenClient) uploadOpen(ctx context.Context, filePath string, parentFileId string, signKey string, signVal string) (string, error) {
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
 		helpers.V115Log.Errorf("获取文件信息失败: %v", err)
@@ -215,7 +250,7 @@ func (c *OpenClient) Upload(ctx context.Context, filePath string, parentFileId s
 		params["sign_val"] = signVal
 		// fmt.Printf("二次认证参数: sign_key=%s, sign_val=%s\n", params["sign_key"], params["sign_val"])
 		// 需要二次认证，再次请求接口
-		return c.Upload(ctx, filePath, parentFileId, signKey, signVal)
+		return c.uploadOpen(ctx, filePath, parentFileId, signKey, signVal)
 	}
 	if status == 2 {
 		// 秒传成功

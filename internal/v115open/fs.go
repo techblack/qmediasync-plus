@@ -98,6 +98,17 @@ func (d *FileDetail) GetFullPath() string {
 // showCur bool true-只显示当前目录下的列表，false-查询当前目录以及子目录内的所有列表
 // offset 和 limit 搭配实现分页，limit最大1150
 func (c *OpenClient) GetFsList(ctx context.Context, fileId string, showCur bool, onlyDir bool, showDir bool, offset int, limit int) (*FileListResp, error) {
+	if c.shouldUseCookie() {
+		return c.getFsListCookie(ctx, fileId, showCur, onlyDir, showDir, offset, limit)
+	}
+	resp, err := c.getFsListOpen(ctx, fileId, showCur, onlyDir, showDir, offset, limit)
+	if c.shouldFallback(err) {
+		return c.getFsListCookie(ctx, fileId, showCur, onlyDir, showDir, offset, limit)
+	}
+	return resp, err
+}
+
+func (c *OpenClient) getFsListOpen(ctx context.Context, fileId string, showCur bool, onlyDir bool, showDir bool, offset int, limit int) (*FileListResp, error) {
 	data := make(map[string]string)
 	data["cid"] = fileId
 	if limit != 0 {
@@ -148,6 +159,17 @@ func (c *OpenClient) GetFsList(ctx context.Context, fileId string, showCur bool,
 // 根据路径查询详情
 // POST 域名 + /open/folder/get_info
 func (c *OpenClient) GetFsDetailByPath(ctx context.Context, path string) (*FileDetail, error) {
+	if c.shouldUseCookie() {
+		return c.getFsDetailByPathCookie(ctx, path)
+	}
+	detail, err := c.getFsDetailByPathOpen(ctx, path)
+	if c.shouldFallback(err) {
+		return c.getFsDetailByPathCookie(ctx, path)
+	}
+	return detail, err
+}
+
+func (c *OpenClient) getFsDetailByPathOpen(ctx context.Context, path string) (*FileDetail, error) {
 	if path == "." || path == "/" || path == "" {
 		return nil, fmt.Errorf("不能查询根目录的详情")
 	}
@@ -195,6 +217,17 @@ func (c *OpenClient) GetFsDetailByPath(ctx context.Context, path string) (*FileD
 // 根据CID查询详情
 // GET 域名 + /open/folder/get_info
 func (c *OpenClient) GetFsDetailByCid(ctx context.Context, fileId string) (*FileDetail, error) {
+	if c.shouldUseCookie() {
+		return c.getFsDetailByCidCookie(ctx, fileId)
+	}
+	detail, err := c.getFsDetailByCidOpen(ctx, fileId)
+	if c.shouldFallback(err) {
+		return c.getFsDetailByCidCookie(ctx, fileId)
+	}
+	return detail, err
+}
+
+func (c *OpenClient) getFsDetailByCidOpen(ctx context.Context, fileId string) (*FileDetail, error) {
 	if fileId == "" {
 		return nil, fmt.Errorf("fileId is empty")
 	}
@@ -238,6 +271,19 @@ func (c *OpenClient) GetFsDetailByCid(ctx context.Context, fileId string) (*File
 // 重命名
 // Path： POST 域名 + /open/ufile/update
 func (c *OpenClient) ReName(ctx context.Context, fileId string, newName string) (bool, error) {
+	if c.shouldUseCookie() {
+		err := c.getCookieClient().Rename(fileId, newName)
+		return err == nil, err
+	}
+	success, err := c.reNameOpen(ctx, fileId, newName)
+	if c.shouldFallback(err) {
+		err = c.getCookieClient().Rename(fileId, newName)
+		return err == nil, err
+	}
+	return success, err
+}
+
+func (c *OpenClient) reNameOpen(ctx context.Context, fileId string, newName string) (bool, error) {
 	data := make(map[string]string)
 	data["file_id"] = fileId
 	data["file_name"] = newName
@@ -262,6 +308,19 @@ func (c *OpenClient) ReName(ctx context.Context, fileId string, newName string) 
 // POST 域名 + /open/ufile/move
 // 多个文件用半角逗号分隔
 func (c *OpenClient) Move(ctx context.Context, fileIds []string, toFileId string) (bool, error) {
+	if c.shouldUseCookie() {
+		err := c.getCookieClient().Move(toFileId, fileIds...)
+		return err == nil, err
+	}
+	success, err := c.moveOpen(ctx, fileIds, toFileId)
+	if c.shouldFallback(err) {
+		err = c.getCookieClient().Move(toFileId, fileIds...)
+		return err == nil, err
+	}
+	return success, err
+}
+
+func (c *OpenClient) moveOpen(ctx context.Context, fileIds []string, toFileId string) (bool, error) {
 	data := make(map[string]string)
 	data["file_ids"] = strings.Join(fileIds, ",")
 	data["to_cid"] = toFileId
@@ -285,6 +344,19 @@ func (c *OpenClient) Move(ctx context.Context, fileIds []string, toFileId string
 // POST 域名 + /open/ufile/copy
 // 多个文件用半角逗号分隔
 func (c *OpenClient) Copy(ctx context.Context, fileIds []string, toFileId string, overwrite bool) (bool, error) {
+	if c.shouldUseCookie() {
+		err := c.getCookieClient().Copy(toFileId, fileIds...)
+		return err == nil, err
+	}
+	success, err := c.copyOpen(ctx, fileIds, toFileId, overwrite)
+	if c.shouldFallback(err) {
+		err = c.getCookieClient().Copy(toFileId, fileIds...)
+		return err == nil, err
+	}
+	return success, err
+}
+
+func (c *OpenClient) copyOpen(ctx context.Context, fileIds []string, toFileId string, overwrite bool) (bool, error) {
 	data := make(map[string]string)
 	data["file_id"] = strings.Join(fileIds, ",")
 	data["pid"] = toFileId
@@ -313,6 +385,19 @@ func (c *OpenClient) Copy(ctx context.Context, fileIds []string, toFileId string
 // POST 域名 + /open/ufile/delete
 // 多个文件用半角逗号分隔
 func (c *OpenClient) Del(ctx context.Context, fileIds []string, parentFileId string) (bool, error) {
+	if c.shouldUseCookie() {
+		err := c.getCookieClient().Delete(fileIds...)
+		return err == nil, err
+	}
+	success, err := c.delOpen(ctx, fileIds, parentFileId)
+	if c.shouldFallback(err) {
+		err = c.getCookieClient().Delete(fileIds...)
+		return err == nil, err
+	}
+	return success, err
+}
+
+func (c *OpenClient) delOpen(ctx context.Context, fileIds []string, parentFileId string) (bool, error) {
 	data := make(map[string]string)
 	data["file_ids"] = strings.Join(fileIds, ",")
 	if parentFileId != "" {
@@ -337,6 +422,17 @@ func (c *OpenClient) Del(ctx context.Context, fileIds []string, parentFileId str
 // 新建文件夹
 // POST 域名 + /open/folder/add
 func (c *OpenClient) MkDir(ctx context.Context, parentFileId string, fileName string) (string, error) {
+	if c.shouldUseCookie() {
+		return c.getCookieClient().Mkdir(parentFileId, fileName)
+	}
+	fileId, err := c.mkDirOpen(ctx, parentFileId, fileName)
+	if c.shouldFallback(err) {
+		return c.getCookieClient().Mkdir(parentFileId, fileName)
+	}
+	return fileId, err
+}
+
+func (c *OpenClient) mkDirOpen(ctx context.Context, parentFileId string, fileName string) (string, error) {
 	data := make(map[string]string)
 	data["file_name"] = fileName
 	data["pid"] = parentFileId

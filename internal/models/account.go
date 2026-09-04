@@ -25,6 +25,7 @@ type Account struct {
 	Password          string     `json:"password" gorm:"type:string;size:256"`            // openlist的用户密码
 	BaseUrl           string     `json:"base_url" gorm:"type:string;size:1024"`           // openlist的访问地址http[s]://ip:port
 	TokenFailedReason string     `json:"token_failed_reason" gorm:"type:string;size:256"` // 刷新token失败的原因
+	Cookie            string     `json:"-" gorm:"type:text"`                              // 115驱动Cookie，仅在OpenAPI限流时使用
 }
 
 func (account *Account) TableName() string {
@@ -70,7 +71,34 @@ func (account *Account) UpdateUser(userId string, username string) bool {
 
 // 如果是normal模式，创建一个新的客户端，不启用限速器
 func (account *Account) Get115Client() *v115open.OpenClient {
-	return v115open.GetClient(account.ID, account.AppId, account.Token, account.RefreshToken)
+	client := v115open.GetClient(account.ID, account.AppId, account.Token, account.RefreshToken)
+	if err := client.SetCookie(account.Cookie); err != nil {
+		helpers.AppLogger.Errorf("加载115账号Cookie失败，账号ID: %d, 错误: %v", account.ID, err)
+	}
+	return client
+}
+
+// Bind115Cookie 校验并绑定同一115账号的Cookie
+func (account *Account) Bind115Cookie(cookie string) error {
+	if account.SourceType != SourceType115 {
+		return fmt.Errorf("仅115账号支持绑定Cookie")
+	}
+	_, user, err := v115open.NewCookieClient(cookie)
+	if err != nil {
+		return err
+	}
+	if account.UserId != "" && fmt.Sprintf("%d", user.UserID) != account.UserId {
+		return fmt.Errorf("Cookie所属115账号与当前账号不一致")
+	}
+	if err = db.Db.Model(account).Update("cookie", cookie).Error; err != nil {
+		return fmt.Errorf("保存Cookie失败: %w", err)
+	}
+	account.Cookie = cookie
+	openClient := v115open.GetClient(account.ID, account.AppId, account.Token, account.RefreshToken)
+	if err = openClient.SetCookie(cookie); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (account *Account) GetOpenListClient() *openlist.Client {

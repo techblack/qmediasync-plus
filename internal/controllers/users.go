@@ -94,6 +94,12 @@ func LoginAction(c *gin.Context) {
 	c.JSON(http.StatusOK, APIResponse[any]{Code: Success, Message: "登录成功", Data: res})
 }
 
+// LogoutAction 退出当前登录并清除认证 Cookie
+func LogoutAction(c *gin.Context) {
+	c.SetCookie("auth_token", "", -1, "/", "", false, true)
+	c.JSON(http.StatusOK, APIResponse[any]{Code: Success, Message: "退出登录成功", Data: nil})
+}
+
 // ChangePassword 修改密码或用户名
 // @Summary 修改密码
 // @Description 修改当前登录用户的用户名和密码

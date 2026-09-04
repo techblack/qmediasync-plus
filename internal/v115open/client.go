@@ -4,12 +4,16 @@ import (
 	"Q115-STRM/internal/helpers"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
+	driver115 "github.com/SheltonZhu/115driver/pkg/driver"
 	"resty.dev/v3"
 )
+
+var ErrOpenAPIThrottled = errors.New("115 OpenAPI 访问频率过高")
 
 // OpenClient HTTP客户端
 type OpenClient struct {
@@ -18,6 +22,9 @@ type OpenClient struct {
 	client          *resty.Client
 	AccessToken     string // 访问令牌
 	RefreshTokenStr string // 刷新令牌
+	cookieMu        sync.RWMutex
+	cookieClient    *driver115.Pan115Client
+	cookie          string
 }
 
 // 全局HTTP客户端实例
@@ -35,8 +42,8 @@ func UpdateToken(accountId uint, token string, refreshToken string) {
 
 // NewHttpClient 创建新的HTTP客户端
 func GetClient(accountId uint, appId string, token string, refreshToken string) *OpenClient {
-	cachedClientsMutex.RLock()
-	defer cachedClientsMutex.RUnlock()
+	cachedClientsMutex.Lock()
+	defer cachedClientsMutex.Unlock()
 	clientKey := fmt.Sprintf("%d", accountId)
 	if client, exists := cachedClients[clientKey]; exists {
 		client.SetAuthToken(token, refreshToken)
@@ -52,6 +59,41 @@ func GetClient(accountId uint, appId string, token string, refreshToken string) 
 	openClient.SetAuthToken(token, refreshToken)
 	cachedClients[clientKey] = openClient
 	return openClient
+}
+
+// SetCookie 设置用于 OpenAPI 限流回退的115 Cookie客户端
+func (c *OpenClient) SetCookie(cookie string) error {
+	c.cookieMu.Lock()
+	defer c.cookieMu.Unlock()
+	if cookie == "" {
+		c.cookieClient = nil
+		c.cookie = ""
+		return nil
+	}
+	if c.cookieClient != nil && c.cookie == cookie {
+		return nil
+	}
+	client, err := NewCookieClientUnchecked(cookie)
+	if err != nil {
+		return err
+	}
+	c.cookieClient = client
+	c.cookie = cookie
+	return nil
+}
+
+func (c *OpenClient) getCookieClient() *driver115.Pan115Client {
+	c.cookieMu.RLock()
+	defer c.cookieMu.RUnlock()
+	return c.cookieClient
+}
+
+func (c *OpenClient) shouldUseCookie() bool {
+	return c.getCookieClient() != nil && GetGlobalExecutor().GetThrottleStatus().IsThrottled
+}
+
+func (c *OpenClient) shouldFallback(err error) bool {
+	return c.getCookieClient() != nil && errors.Is(err, ErrOpenAPIThrottled)
 }
 
 // SetAuthToken 设置认证令牌
@@ -219,10 +261,8 @@ func (c *OpenClient) doAuthRequest(ctx context.Context, url string, req *resty.R
 
 		// 如果是限流错误，不重试
 		if queueResp.IsThrottled {
-			helpers.V115Log.Warn("检测到限流，等待1分钟后重试")
-			// 等待1分钟后重试
-			time.Sleep(1 * time.Minute)
-			continue
+			helpers.V115Log.Warn("检测到限流，立即返回以切换115 Cookie驱动")
+			return queueResp.Response, queueResp.RespBytes, ErrOpenAPIThrottled
 		}
 
 		// 其他错误开始重试

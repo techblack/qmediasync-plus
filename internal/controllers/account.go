@@ -41,6 +41,7 @@ func GetAccountList(c *gin.Context) {
 		TokenFailedReason string            `json:"token_failed_reason"`
 		BaseUrl           string            `json:"base_url"`
 		AuthType          string            `json:"auth_type"`
+		CookieBound       bool              `json:"cookie_bound"`
 	}
 	resp := make([]accountResp, 0, len(accounts))
 	for _, account := range accounts {
@@ -56,6 +57,7 @@ func GetAccountList(c *gin.Context) {
 			CreatedAt:         account.CreatedAt,
 			TokenFailedReason: account.TokenFailedReason,
 			BaseUrl:           account.BaseUrl,
+			CookieBound:       account.Cookie != "",
 		}
 		switch account.AppId {
 		case "Q115-STRM":
@@ -85,6 +87,40 @@ func GetAccountList(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, APIResponse[[]accountResp]{Code: Success, Message: "查询开放平台账号成功", Data: resp})
+}
+
+// Bind115Cookie 为115开放平台账号绑定Cookie驱动凭据
+// @Summary 绑定115 Cookie
+// @Description 校验Cookie所属账号后绑定，用于OpenAPI限流时自动回退
+// @Tags 账号管理
+// @Accept json
+// @Produce json
+// @Param body body object true "账号ID和Cookie"
+// @Success 200 {object} object
+// @Failure 200 {object} object
+// @Router /account/115-cookie [post]
+// @Security JwtAuth
+// @Security ApiKeyAuth
+func Bind115Cookie(c *gin.Context) {
+	type bindCookieReq struct {
+		ID     uint   `json:"id" form:"id" binding:"required"`
+		Cookie string `json:"cookie" form:"cookie" binding:"required"`
+	}
+	var req bindCookieReq
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusOK, APIResponse[any]{Code: BadRequest, Message: "账号ID和Cookie不能为空", Data: nil})
+		return
+	}
+	account, err := models.GetAccountById(req.ID)
+	if err != nil {
+		c.JSON(http.StatusOK, APIResponse[any]{Code: BadRequest, Message: "账号ID不存在", Data: nil})
+		return
+	}
+	if err = account.Bind115Cookie(strings.TrimSpace(req.Cookie)); err != nil {
+		c.JSON(http.StatusOK, APIResponse[any]{Code: BadRequest, Message: err.Error(), Data: nil})
+		return
+	}
+	c.JSON(http.StatusOK, APIResponse[any]{Code: Success, Message: "绑定115 Cookie成功", Data: nil})
 }
 
 // CreateTmpAccount 创建临时开放平台账号

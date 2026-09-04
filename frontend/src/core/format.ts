@@ -1,0 +1,2 @@
+export function formatSize(bytes=0){if(!bytes)return'-';const units=['B','KB','MB','GB','TB'],i=Math.min(Math.floor(Math.log(bytes)/Math.log(1024)),units.length-1);return`${(bytes/1024**i).toFixed(i?1:0)} ${units[i]}`}
+export function formatTime(value:number|string|undefined){if(!value)return'-';const date=new Date(typeof value==='number'?value*1000:value);return Number.isNaN(date.getTime())?'-':date.toLocaleString('zh-CN')}

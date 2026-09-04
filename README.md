@@ -1,6 +1,8 @@
-# QMediaSync
+# qmediasync-plus
 
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/qicfan/qmediasync)
+QMediaSync 的增强版，项目仓库名为 `qmediasync-plus`，采用 GPL-3.0 开源协议。
+
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/qicfan/qmediasync-plus)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/qicfan/qmediasync)
 
 ## 讨论方式
@@ -65,11 +67,11 @@ sudo ./build_and_release.sh -v vx.xx.xx
 
 ## 贡献者
 
-![Contributors](https://contrib.rocks/image?repo=qicfan/qmediasync)
+![Contributors](https://contrib.rocks/image?repo=qicfan/qmediasync-plus)
 
 ## Star
 
-![Star History](https://api.star-history.com/svg?repos=qicfan/qmediasync&type=Date)
+![Star History](https://api.star-history.com/svg?repos=qicfan/qmediasync-plus&type=Date)
 
 ## 请作者喝杯咖啡
 

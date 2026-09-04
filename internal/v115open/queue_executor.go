@@ -267,7 +267,7 @@ func (qe *QueueExecutor) handleRequest(req *QueuedRequest) {
 
 	// 检查是否是限流响应
 	isThrottled := false
-	if respData != nil && respData.Code == REQUEST_MAX_LIMIT_CODE {
+	if respData != nil && (respData.Code == REQUEST_MAX_LIMIT_CODE || respData.Code == REQUEST_RATE_LIMIT_CODE) {
 		isThrottled = true
 		qe.throttleManager.MarkThrottled(qe.stats)
 	}
@@ -361,7 +361,7 @@ func (qe *QueueExecutor) executeRequest(req *QueuedRequest) (*resty.Response, *R
 	case REFRESH_TOKEN_INVALID:
 		helpers.V115Log.Error("访问凭证无效，请重新登录")
 		return response, resp, resBytes, fmt.Errorf("token expired")
-	case REQUEST_MAX_LIMIT_CODE:
+	case REQUEST_MAX_LIMIT_CODE, REQUEST_RATE_LIMIT_CODE:
 		helpers.V115Log.Warn("检测到限流响应")
 		return response, resp, resBytes, fmt.Errorf("访问频率过高")
 	}

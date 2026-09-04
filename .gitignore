@@ -49,3 +49,4 @@ config/config - 副本.yml
 QMediaSync
 *.mp4
 ./docs/design/*
+frontend/node_modules/*
