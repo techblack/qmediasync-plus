@@ -482,7 +482,7 @@ fi
 
 # Create GitHub Release
 if gh release create "$TAG" \
-    --repo "qicfan/qmediasync" \
+    --repo "techblack/qmediasync-plus" \
     --title "Release $TAG" \
     --notes-file "release_body.txt" \
     QMediaSync_*.zip \
@@ -490,7 +490,7 @@ if gh release create "$TAG" \
     QMediaSync_*.fpk; then
     
     echo
-    print_colored "green" "✓ GitHub Release created successfully in qicfan/qmediasync!"
+    print_colored "green" "✓ GitHub Release created successfully in techblack/qmediasync-plus!"
     
     # Send Telegram notification after successful release
     print_colored "cyan" "Sending release notes to Telegram..."
