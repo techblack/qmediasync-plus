@@ -5,19 +5,9 @@ QMediaSync 的增强版，项目仓库名为 `qmediasync-plus`，采用 GPL-3.0 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/techblack/qmediasync-plus)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-## 讨论方式
+## 项目来源
 
-- 电报群：[http://t.me/q115_strm](https://t.me/q115_strm)
-- QQ群：1057459156
-- Meow官方频道：使用鸿蒙系统手机扫描下方二维码来关注频道（请用官方浏览器打开）
-  
-  <img src="https://s.mqfamily.top/meow.png" width="200" />
-
-### 开源版本不包含115开放平台账号，需要自备
-
-### 本项目接受除了资源（搜索、订阅、下载）、逆向接口的一切功能PR
-
-#### PR以后如果没有动静可以邮件、TG、QQ联系作者
+本项目源于 [qicfan/qmediasync](https://github.com/qicfan/qmediasync)，在遵循 GPL-3.0 协议的基础上继续开发，主要增加了双 115 驱动支持，并使用 Vue 3、TypeScript 和 Ant Design Vue 重构了前端。
 
 ## 介绍
 
@@ -60,14 +50,6 @@ sudo ./build_and_release.sh -v vx.xx.xx
 - Fanart.tv API KEY
 
 全部都在main.go文件中开头的变量中设置，也可以在编译时通过ldflags传入
-
-## 配套前端
-
-- [QMediaSync-Frontend](https://github.com/qicfan/q115-strm-frontend)
-
-## 贡献者
-
-![Contributors](https://contrib.rocks/image?repo=techblack/qmediasync-plus)
 
 ## Star
 
